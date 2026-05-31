@@ -7,14 +7,17 @@ import { ChevronLeft, User, Phone, FileText, Clock, Calendar, Check, MoreHorizon
 
 export default function SubmitAppointment(props) {
   const params = props.$w?.page?.dataset?.params || {};
+  // 获取当前用户电话号码
+  const currentUser = props.$w?.auth?.currentUser;
+  const userPhone = currentUser?.phone || '';
   const [formData, setFormData] = useState({
     doctorName: params.doctorName || '李芳',
     serviceName: params.serviceName || '',
     department: params.department || '',
     date: params.date || '2026-05-21',
     timeSlot: params.timeSlot || '上午',
-    patientName: '',
-    phone: params.phone || '13991806920',
+    patientName: currentUser?.name || '',
+    phone: params.phone || userPhone,
     symptoms: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
