@@ -191,7 +191,7 @@ export default function Home(props) {
         <div className="absolute bottom-4 left-4 right-4">
           <div className="flex items-center gap-2 mb-1">
             <div className="px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full">
-              <span className="text-xs text-white font-medium">三级甲等</span>
+              <span className="text-xs text-white font-medium">二级专科</span>
             </div>
             <div className="px-2 py-0.5 bg-rose-500/80 backdrop-blur-sm rounded-full">
               <span className="text-xs text-white font-medium">医保定点</span>
