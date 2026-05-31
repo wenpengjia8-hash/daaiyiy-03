@@ -1,7 +1,7 @@
 // @ts-ignore;
 import React from 'react';
 // @ts-ignore;
-import { Home, Calendar, FileText, User, ClipboardList } from 'lucide-react';
+import { Home, Calendar, FileText, User } from 'lucide-react';
 
 export function TabBar({
   activeTab = 'home',
@@ -18,11 +18,6 @@ export function TabBar({
     label: '挂号',
     icon: Calendar,
     pageId: 'appointment'
-  }, {
-    id: 'myAppointments',
-    label: '预约',
-    icon: ClipboardList,
-    pageId: 'myAppointments'
   }, {
     id: 'about',
     label: '简介',
