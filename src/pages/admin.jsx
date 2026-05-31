@@ -1172,11 +1172,15 @@ function StaffContent({
   $w
 }) {
   const [staff, setStaff] = React.useState([]);
+  const [admins, setAdmins] = React.useState([]);
   const [searchKeyword, setSearchKeyword] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState('all');
   const [loading, setLoading] = React.useState(true);
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showAdminModal, setShowAdminModal] = React.useState(false);
   const [editingStaff, setEditingStaff] = React.useState(null);
+  const [editingAdmin, setEditingAdmin] = React.useState(null);
+  const [activeTab, setActiveTab] = React.useState('staff'); // 'staff' | 'admin'
   const [formData, setFormData] = React.useState({
     name: '',
     position: '',
@@ -1187,11 +1191,20 @@ function StaffContent({
     status: 'active',
     joinDate: ''
   });
+  const [adminFormData, setAdminFormData] = React.useState({
+    username: '',
+    password: '',
+    role: 'admin',
+    status: 'active'
+  });
 
-  // 从 doctor 数据模型加载数据
+  // 加载数据
   React.useEffect(() => {
     loadStaffData();
+    loadAdminData();
   }, []);
+
+  // 从 doctor 数据模型加载数据
   const loadStaffData = async () => {
     try {
       setLoading(true);
@@ -1211,7 +1224,8 @@ function StaffContent({
           status: doc.status || 'active',
           joinDate: doc.joinDate || '2020-01-01',
           avatar: doc.avatar || '',
-          expertise: doc.expertise || ''
+          expertise: doc.expertise || '',
+          type: 'staff'
         }));
         setStaff(formattedStaff);
       } else {
@@ -1227,6 +1241,33 @@ function StaffContent({
       setStaff([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 从 admin 数据模型加载管理员数据
+  const loadAdminData = async () => {
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const result = await db.collection('admin').get();
+      if (result.data && result.data.length > 0) {
+        const formattedAdmins = result.data.map(doc => ({
+          id: doc._id,
+          username: doc.username || '',
+          password: doc.password || '',
+          role: doc.role || 'admin',
+          status: doc.status || 'active',
+          lastLoginTime: doc.lastLoginTime || null,
+          createdAt: doc.createdAt || Date.now(),
+          type: 'admin'
+        }));
+        setAdmins(formattedAdmins);
+      } else {
+        setAdmins([]);
+      }
+    } catch (error) {
+      console.error('加载管理员数据失败:', error);
+      setAdmins([]);
     }
   };
   // 分页状态
@@ -1434,6 +1475,10 @@ function StaffContent({
         label: '管理员',
         className: 'bg-purple-100 text-purple-700'
       },
+      super_admin: {
+        label: '超级管理员',
+        className: 'bg-red-100 text-red-700'
+      },
       doctor: {
         label: '医生',
         className: 'bg-blue-100 text-blue-700'
@@ -1449,176 +1494,466 @@ function StaffContent({
     };
     return <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.className}`}>{config.label}</span>;
   };
+
+  // 管理员相关操作
+  const handleAddAdmin = () => {
+    setEditingAdmin(null);
+    setAdminFormData({
+      username: '',
+      password: '',
+      role: 'admin',
+      status: 'active'
+    });
+    setShowAdminModal(true);
+  };
+  const handleEditAdmin = admin => {
+    setEditingAdmin(admin);
+    setAdminFormData({
+      username: admin.username,
+      password: '',
+      role: admin.role,
+      status: admin.status
+    });
+    setShowAdminModal(true);
+  };
+  const handleAdminStatusChange = async (id, newStatus) => {
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      await db.collection('admin').doc(id).update({
+        status: newStatus,
+        updatedAt: Date.now()
+      });
+      setAdmins(admins.map(a => a.id === id ? {
+        ...a,
+        status: newStatus
+      } : a));
+      toast({
+        title: '状态更新成功',
+        description: newStatus === 'active' ? '管理员已启用' : '管理员已禁用'
+      });
+    } catch (error) {
+      console.error('更新管理员状态失败:', error);
+      toast({
+        title: '更新失败',
+        description: error.message || '请稍后重试',
+        variant: 'destructive'
+      });
+    }
+  };
+  const handleDeleteAdmin = async admin => {
+    if (!confirm(`确定要删除管理员 "${admin.username}" 吗？此操作不可恢复。`)) {
+      return;
+    }
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      await db.collection('admin').doc(admin.id).remove();
+      setAdmins(admins.filter(a => a.id !== admin.id));
+      toast({
+        title: '删除成功',
+        description: '管理员账号已删除'
+      });
+    } catch (error) {
+      console.error('删除管理员失败:', error);
+      toast({
+        title: '删除失败',
+        description: error.message || '请稍后重试',
+        variant: 'destructive'
+      });
+    }
+  };
+  const validateAdminForm = () => {
+    if (!adminFormData.username.trim()) {
+      toast({
+        title: '验证失败',
+        description: '请输入用户名',
+        variant: 'destructive'
+      });
+      return false;
+    }
+    if (!editingAdmin && !adminFormData.password.trim()) {
+      toast({
+        title: '验证失败',
+        description: '请输入密码',
+        variant: 'destructive'
+      });
+      return false;
+    }
+    if (adminFormData.password && adminFormData.password.length < 6) {
+      toast({
+        title: '验证失败',
+        description: '密码长度至少6位',
+        variant: 'destructive'
+      });
+      return false;
+    }
+    return true;
+  };
+  const handleSaveAdmin = async () => {
+    if (!validateAdminForm()) return;
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const saveData = {
+        username: adminFormData.username.trim(),
+        role: adminFormData.role,
+        status: adminFormData.status,
+        updatedAt: Date.now()
+      };
+      if (adminFormData.password) {
+        saveData.password = adminFormData.password;
+      }
+      if (editingAdmin) {
+        await db.collection('admin').doc(editingAdmin.id).update(saveData);
+        setAdmins(admins.map(a => a.id === editingAdmin.id ? {
+          ...a,
+          ...saveData
+        } : a));
+        toast({
+          title: '更新成功',
+          description: '管理员信息已更新'
+        });
+      } else {
+        const result = await db.collection('admin').add({
+          ...saveData,
+          createdAt: Date.now()
+        });
+        setAdmins([...admins, {
+          id: result._id,
+          username: adminFormData.username,
+          role: adminFormData.role,
+          status: adminFormData.status,
+          createdAt: Date.now()
+        }]);
+        toast({
+          title: '添加成功',
+          description: '新管理员已添加'
+        });
+      }
+      setShowAdminModal(false);
+    } catch (error) {
+      console.error('保存管理员失败:', error);
+      toast({
+        title: '保存失败',
+        description: error.message || '请稍后重试',
+        variant: 'destructive'
+      });
+    }
+  };
+  const formatDate = timestamp => {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
   return <div className="space-y-6">
-      {/* 操作栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-gray-600">共 {staff.length} 名人员</div>
-          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
-            <option value="all">全部角色</option>
-            <option value="admin">管理员</option>
-            <option value="doctor">医生</option>
-            <option value="nurse">护士</option>
-          </select>
-        </div>
-        <button onClick={handleAdd} className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 flex items-center gap-2">
-          <Plus size={20} />
-          添加人员
-        </button>
-      </div>
-
-      {/* 搜索栏 */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input type="text" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} placeholder="搜索姓名、职位、部门..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+      {/* Tab 切换 */}
+      <div className="bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+        <div className="flex gap-1">
+          <button onClick={() => setActiveTab('staff')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'staff' ? 'bg-rose-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+            医护人员 ({staff.length})
+          </button>
+          <button onClick={() => setActiveTab('admin')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'admin' ? 'bg-rose-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+            后台管理员 ({admins.length})
+          </button>
         </div>
       </div>
 
-      {/* 人员列表 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">姓名</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">职位</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">部门</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">角色</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">联系电话</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">入职日期</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">状态</th>
-              <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStaff.map(s => <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="py-4 px-6 font-medium text-gray-800">{s.name}</td>
-                <td className="py-4 px-6 text-gray-600">{s.position}</td>
-                <td className="py-4 px-6 text-gray-600">{s.department}</td>
-                <td className="py-4 px-6">{getRoleBadge(s.role)}</td>
-                <td className="py-4 px-6 text-gray-600">{s.phone}</td>
-                <td className="py-4 px-6 text-gray-600">{s.joinDate}</td>
-                <td className="py-4 px-6">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${s.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {s.status === 'active' ? '在职' : '离职'}
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(s)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg" title="编辑">
-                      <Edit size={18} />
-                    </button>
-                    <button onClick={() => handleStatusChange(s.id, s.status === 'active' ? 'inactive' : 'active')} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title={s.status === 'active' ? '禁用' : '启用'}>
-                      <Shield size={18} />
-                    </button>
-                    <button onClick={() => handleDelete(s)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="删除">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>)}
-          </tbody>
-        </table>
-        {loading && <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
-          </div>}
-        {!loading && filteredStaff.length === 0 && <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-            <Users size={48} className="mb-4 opacity-50" />
-            <p>暂无人员信息</p>
-            <p className="text-sm mt-2">点击"添加人员"按钮添加新人员</p>
-          </div>}
-      </div>
+      {activeTab === 'staff' ? <>
+          {/* 操作栏 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-gray-600">共 {staff.length} 名人员</div>
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                <option value="all">全部角色</option>
+                <option value="admin">管理员</option>
+                <option value="doctor">医生</option>
+                <option value="nurse">护士</option>
+              </select>
+            </div>
+            <button onClick={handleAdd} className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 flex items-center gap-2">
+              <Plus size={20} />
+              添加人员
+            </button>
+          </div>
 
-      {/* 添加/编辑弹窗 */}
-      {showAddModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">
-                {editingStaff ? '编辑人员' : '添加人员'}
-              </h3>
-              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-                <input type="text" value={formData.name} onChange={e => setFormData({
-              ...formData,
-              name: e.target.value
-            })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入姓名" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">职位</label>
-                  <input type="text" value={formData.position} onChange={e => setFormData({
-                ...formData,
-                position: e.target.value
-              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="如：主治医师" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">部门</label>
-                  <input type="text" value={formData.department} onChange={e => setFormData({
-                ...formData,
-                department: e.target.value
-              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="如：妇科" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                  <select value={formData.role} onChange={e => setFormData({
-                ...formData,
-                role: e.target.value
-              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
-                    <option value="doctor">医生</option>
-                    <option value="nurse">护士</option>
-                    <option value="admin">管理员</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
-                  <select value={formData.status} onChange={e => setFormData({
-                ...formData,
-                status: e.target.value
-              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
-                    <option value="active">在职</option>
-                    <option value="inactive">离职</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
-                <input type="text" value={formData.phone} onChange={e => setFormData({
-              ...formData,
-              phone: e.target.value
-            })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入联系电话" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({
-              ...formData,
-              email: e.target.value
-            })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入邮箱地址" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">入职日期</label>
-                <input type="date" value={formData.joinDate} onChange={e => setFormData({
-              ...formData,
-              joinDate: e.target.value
-            })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50">
-                取消
-              </button>
-              <button onClick={handleSave} className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600">
-                {editingStaff ? '保存修改' : '确认添加'}
-              </button>
+          {/* 搜索栏 */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input type="text" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} placeholder="搜索姓名、职位、部门..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
             </div>
           </div>
-        </div>}
+
+          {/* 人员列表 */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">姓名</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">职位</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">部门</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">角色</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">联系电话</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">入职日期</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">状态</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStaff.map(s => <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="py-4 px-6 font-medium text-gray-800">{s.name}</td>
+                    <td className="py-4 px-6 text-gray-600">{s.position}</td>
+                    <td className="py-4 px-6 text-gray-600">{s.department}</td>
+                    <td className="py-4 px-6">{getRoleBadge(s.role)}</td>
+                    <td className="py-4 px-6 text-gray-600">{s.phone}</td>
+                    <td className="py-4 px-6 text-gray-600">{s.joinDate}</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${s.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {s.status === 'active' ? '在职' : '离职'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleEdit(s)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg" title="编辑">
+                          <Edit size={18} />
+                        </button>
+                        <button onClick={() => handleStatusChange(s.id, s.status === 'active' ? 'inactive' : 'active')} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title={s.status === 'active' ? '禁用' : '启用'}>
+                          <Shield size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(s)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="删除">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>)}
+              </tbody>
+            </table>
+            {loading && <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-2 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
+              </div>}
+            {!loading && filteredStaff.length === 0 && <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <Users size={48} className="mb-4 opacity-50" />
+                <p>暂无人员信息</p>
+                <p className="text-sm mt-2">点击"添加人员"按钮添加新人员</p>
+              </div>}
+          </div>
+
+          {/* 添加/编辑弹窗 */}
+          {showAddModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {editingStaff ? '编辑人员' : '添加人员'}
+                  </h3>
+                  <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                    <input type="text" value={formData.name} onChange={e => setFormData({
+                ...formData,
+                name: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入姓名" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">职位</label>
+                      <input type="text" value={formData.position} onChange={e => setFormData({
+                  ...formData,
+                  position: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="如：主治医师" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">部门</label>
+                      <input type="text" value={formData.department} onChange={e => setFormData({
+                  ...formData,
+                  department: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="如：妇科" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                      <select value={formData.role} onChange={e => setFormData({
+                  ...formData,
+                  role: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="doctor">医生</option>
+                        <option value="nurse">护士</option>
+                        <option value="admin">管理员</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
+                      <select value={formData.status} onChange={e => setFormData({
+                  ...formData,
+                  status: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="active">在职</option>
+                        <option value="inactive">离职</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+                    <input type="text" value={formData.phone} onChange={e => setFormData({
+                ...formData,
+                phone: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入联系电话" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                    <input type="email" value={formData.email} onChange={e => setFormData({
+                ...formData,
+                email: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入邮箱地址" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">入职日期</label>
+                    <input type="date" value={formData.joinDate} onChange={e => setFormData({
+                ...formData,
+                joinDate: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50">
+                    取消
+                  </button>
+                  <button onClick={handleSave} className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600">
+                    {editingStaff ? '保存修改' : '确认添加'}
+                  </button>
+                </div>
+              </div>
+            </div>}
+        </> : <>
+          {/* 管理员操作栏 */}
+          <div className="flex items-center justify-between">
+            <div className="text-gray-600">共 {admins.length} 个管理员账号</div>
+            <button onClick={handleAddAdmin} className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 flex items-center gap-2">
+              <Plus size={20} />
+              添加管理员
+            </button>
+          </div>
+
+          {/* 管理员列表 */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">用户名</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">角色</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">状态</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">最后登录</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">创建时间</th>
+                  <th className="text-left py-4 px-6 text-gray-500 text-sm font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admins.map(admin => <tr key={admin.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="py-4 px-6 font-medium text-gray-800">{admin.username}</td>
+                    <td className="py-4 px-6">{getRoleBadge(admin.role)}</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${admin.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {admin.status === 'active' ? '启用' : '禁用'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-gray-600">{formatDate(admin.lastLoginTime)}</td>
+                    <td className="py-4 px-6 text-gray-600">{formatDate(admin.createdAt)}</td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleEditAdmin(admin)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg" title="编辑">
+                          <Edit size={18} />
+                        </button>
+                        <button onClick={() => handleAdminStatusChange(admin.id, admin.status === 'active' ? 'inactive' : 'active')} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title={admin.status === 'active' ? '禁用' : '启用'}>
+                          <Shield size={18} />
+                        </button>
+                        <button onClick={() => handleDeleteAdmin(admin)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="删除">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>)}
+              </tbody>
+            </table>
+            {admins.length === 0 && <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <Shield size={48} className="mb-4 opacity-50" />
+                <p>暂无管理员账号</p>
+                <p className="text-sm mt-2">点击"添加管理员"按钮添加新账号</p>
+              </div>}
+          </div>
+
+          {/* 添加/编辑管理员弹窗 */}
+          {showAdminModal && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {editingAdmin ? '编辑管理员' : '添加管理员'}
+                  </h3>
+                  <button onClick={() => setShowAdminModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <input type="text" value={adminFormData.username} onChange={e => setAdminFormData({
+                ...adminFormData,
+                username: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入用户名" disabled={editingAdmin} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      密码 {editingAdmin && <span className="text-gray-400 text-xs">（留空表示不修改）</span>}
+                    </label>
+                    <input type="password" value={adminFormData.password} onChange={e => setAdminFormData({
+                ...adminFormData,
+                password: e.target.value
+              })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder={editingAdmin ? "请输入新密码（可选）" : "请输入密码"} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                      <select value={adminFormData.role} onChange={e => setAdminFormData({
+                  ...adminFormData,
+                  role: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="admin">管理员</option>
+                        <option value="super_admin">超级管理员</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
+                      <select value={adminFormData.status} onChange={e => setAdminFormData({
+                  ...adminFormData,
+                  status: e.target.value
+                })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="active">启用</option>
+                        <option value="inactive">禁用</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setShowAdminModal(false)} className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50">
+                    取消
+                  </button>
+                  <button onClick={handleSaveAdmin} className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600">
+                    {editingAdmin ? '保存修改' : '确认添加'}
+                  </button>
+                </div>
+              </div>
+            </div>}
+        </>}
     </div>;
 }
 
