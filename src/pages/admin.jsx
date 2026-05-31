@@ -2092,6 +2092,129 @@ function SettingsContent() {
   const {
     toast
   } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settingsId, setSettingsId] = useState('system_default');
+  const [formData, setFormData] = useState({
+    hospital_name: '',
+    hospital_level: '二级专科',
+    contact_phone: '',
+    address: '',
+    business_hours: '',
+    introduction: ''
+  });
+
+  // 医院等级选项
+  const hospitalLevels = ['三级甲等', '二级甲等', '二级专科', '一级医院', '社区医院'];
+
+  // 加载系统设置
+  useEffect(() => {
+    loadSettings();
+  }, []);
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+
+      // 查询系统设置
+      const result = await db.collection('system_setting').get();
+      if (result.data && result.data.length > 0) {
+        const settings = result.data[0];
+        setSettingsId(settings._id);
+        setFormData({
+          hospital_name: settings.hospital_name || '',
+          hospital_level: settings.hospital_level || '二级专科',
+          contact_phone: settings.contact_phone || '',
+          address: settings.address || '',
+          business_hours: settings.business_hours || '',
+          introduction: settings.introduction || ''
+        });
+      } else {
+        // 没有设置记录，使用默认值
+        setFormData({
+          hospital_name: '现代妇科医院',
+          hospital_level: '二级专科',
+          contact_phone: '400-888-8888',
+          address: '北京市朝阳区健康路88号',
+          business_hours: '周一至周日 08:00-18:00',
+          introduction: '现代妇科医院是一家专注于女性健康的大型综合性医院，拥有先进的医疗设备和专业的医疗团队。'
+        });
+      }
+    } catch (error) {
+      console.error('加载系统设置失败:', error);
+      toast({
+        title: '加载失败',
+        description: error.message || '请稍后重试',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 保存设置
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const saveData = {
+        hospital_name: formData.hospital_name,
+        hospital_level: formData.hospital_level,
+        contact_phone: formData.contact_phone,
+        address: formData.address,
+        business_hours: formData.business_hours,
+        introduction: formData.introduction,
+        updatedAt: Date.now()
+      };
+
+      // 检查是否已有记录
+      const existingResult = await db.collection('system_setting').where({
+        _id: settingsId
+      }).get();
+      if (existingResult.data && existingResult.data.length > 0) {
+        // 更新现有记录
+        await db.collection('system_setting').doc(settingsId).update({
+          data: saveData
+        });
+      } else {
+        // 创建新记录
+        await db.collection('system_setting').add({
+          data: {
+            ...saveData,
+            createdAt: Date.now()
+          }
+        });
+      }
+      toast({
+        title: '保存成功',
+        description: '系统设置已更新'
+      });
+    } catch (error) {
+      console.error('保存系统设置失败:', error);
+      toast({
+        title: '保存失败',
+        description: error.message || '请稍后重试',
+        variant: 'destructive'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 处理输入变化
+  const handleChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  if (loading) {
+    return <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
+      </div>;
+  }
   return <div className="space-y-6 max-w-3xl">
       {/* 基本设置 */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -2099,59 +2222,38 @@ function SettingsContent() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">医院名称</label>
-            <input type="text" defaultValue="妇幼保健院" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            <input type="text" value={formData.hospital_name} onChange={e => handleChange('hospital_name', e.target.value)} placeholder="请输入医院名称" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">医院等级</label>
+            <select value={formData.hospital_level} onChange={e => handleChange('hospital_level', e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
+              {hospitalLevels.map(level => <option key={level} value={level}>{level}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">联系电话</label>
-            <input type="text" defaultValue="400-888-8888" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            <input type="text" value={formData.contact_phone} onChange={e => handleChange('contact_phone', e.target.value)} placeholder="请输入联系电话" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">工作时间</label>
-            <input type="text" defaultValue="周一至周日 08:00-18:00" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* 预约设置 */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">预约设置</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-800">开启预约</p>
-              <p className="text-sm text-gray-500">允许患者在线预约挂号</p>
-            </div>
-            <button className="w-12 h-6 bg-rose-500 rounded-full relative">
-              <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-800">预约提醒</p>
-              <p className="text-sm text-gray-500">提前一天发送预约提醒</p>
-            </div>
-            <button className="w-12 h-6 bg-gray-300 rounded-full relative">
-              <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full" />
-            </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">医院地址</label>
+            <input type="text" value={formData.address} onChange={e => handleChange('address', e.target.value)} placeholder="请输入医院地址" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">可预约天数</label>
-            <select className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500">
-              <option value="7">7天</option>
-              <option value="14" selected>14天</option>
-              <option value="30">30天</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-2">营业时间</label>
+            <input type="text" value={formData.business_hours} onChange={e => handleChange('business_hours', e.target.value)} placeholder="如：周一至周日 08:00-18:00" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">医院简介</label>
+            <textarea value={formData.introduction} onChange={e => handleChange('introduction', e.target.value)} placeholder="请输入医院简介" rows={4} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none" />
           </div>
         </div>
       </div>
 
       {/* 保存按钮 */}
       <div className="flex justify-end">
-        <button onClick={() => toast({
-        title: '保存成功',
-        description: '系统设置已更新'
-      })} className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600">
-          保存设置
+        <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+          {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+          {saving ? '保存中...' : '保存设置'}
         </button>
       </div>
     </div>;

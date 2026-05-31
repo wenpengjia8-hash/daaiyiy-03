@@ -1,0 +1,45 @@
+{
+  "name": "system_settings",
+  "fields": [
+    {
+      "name": "hospital_name",
+      "type": "string",
+      "description": "医院名称"
+    },
+    {
+      "name": "hospital_level",
+      "type": "string",
+      "description": "医院等级"
+    },
+    {
+      "name": "contact_phone",
+      "type": "string",
+      "description": "联系电话"
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "description": "医院地址"
+    },
+    {
+      "name": "business_hours",
+      "type": "string",
+      "description": "营业时间"
+    },
+    {
+      "name": "introduction",
+      "type": "string",
+      "description": "医院简介"
+    },
+    {
+      "name": "createdAt",
+      "type": "number",
+      "description": "创建时间"
+    },
+    {
+      "name": "updatedAt",
+      "type": "number",
+      "description": "更新时间"
+    }
+  ]
+}
