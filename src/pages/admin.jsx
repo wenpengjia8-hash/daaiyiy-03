@@ -1761,7 +1761,7 @@ function ContentManagementContent({
         // 转换数据格式
         const formattedData = {
           hospitalName: data.hospitalName || '',
-          hospitalLevel: data.hospitalLevels?.[0] || '三级甲等',
+          hospitalLevel: data.hospitalLevels?.[0] || '二级专科',
           isMedicalInsurance: data.hospitalLevels?.includes('医保定点') || false,
           slogan: data.slogan || '',
           description: Array.isArray(data.description) ? data.description.join('\n\n') : data.description || '',
@@ -1800,7 +1800,7 @@ function ContentManagementContent({
   // 默认数据
   const getDefaultData = () => ({
     hospitalName: '西安大爱妇科医院',
-    hospitalLevel: '三级甲等',
+    hospitalLevel: '二级专科',
     isMedicalInsurance: true,
     slogan: '专业妇产 · 值得信赖 · 守护健康',
     description: '西安大爱妇科医院坐落于健康东街城市中心腹地，占地面积4000多平米，12层就诊大楼医疗面积15000平米，病床数280张，项目总投资1.2亿元。是西安地区规模大的专业妇产医院，在陕西省内名列前茅。\n\n大爱妇产是西安市卫生局直属的三级专科医院，现有员工200余名，其中，主任医师、副主任医师30多名，以及由主任护师组成的专业化护理团队。医院科室齐全，分为妇科部、产科部、新生儿科部、外科、内科、急诊科及影像、放射、检验等多个功能科室，提供与国际接轨的高品质医疗。\n\n各科室主任都由在西安市乃至陕西省妇产科领域享有盛誉、具有30年以上临床经验的专家担任，确保医疗安全和医疗质量。大爱设有专人值守的24小时健康顾问热线，所有曾经咨询和就诊的患者都将分别录入健康档案，永久保存，随时查阅。',
@@ -1955,6 +1955,7 @@ function ContentManagementContent({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">医院等级</label>
             {isEditing ? <select value={editForm.hospitalLevel} onChange={e => handleInputChange('hospitalLevel', e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
+                <option value="二级专科">二级专科</option>
                 <option value="三级甲等">三级甲等</option>
                 <option value="三级乙等">三级乙等</option>
                 <option value="二级甲等">二级甲等</option>
