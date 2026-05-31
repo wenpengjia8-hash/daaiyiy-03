@@ -7,7 +7,6 @@ import ROUTE from '../pages/route.jsx';
 import DOCTOR from '../pages/doctor.jsx';
 import PROFILE from '../pages/profile.jsx';
 import ADMIN from '../pages/admin.jsx';
-import MYAPPOINTMENTS from '../pages/myAppointments.jsx';
 export const routers = [{
   id: "home",
   component: HOME
@@ -35,7 +34,4 @@ export const routers = [{
 }, {
   id: "admin",
   component: ADMIN
-}, {
-  id: "myAppointments",
-  component: MYAPPOINTMENTS
 }]
