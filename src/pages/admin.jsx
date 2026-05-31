@@ -2133,7 +2133,7 @@ function SettingsContent() {
       } else {
         // 没有设置记录，使用默认值
         setFormData({
-          hospital_name: '现代妇科医院',
+          hospital_name: '西安大爱妇科医院',
           hospital_level: '二级专科',
           contact_phone: '400-888-8888',
           address: '北京市朝阳区健康路88号',
