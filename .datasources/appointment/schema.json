@@ -1,0 +1,57 @@
+{
+  "name": "appointment",
+  "title": "预约记录",
+  "schemas": [
+    {
+      "name": "patientName",
+      "title": "患者姓名",
+      "type": "String"
+    },
+    {
+      "name": "phone",
+      "title": "联系电话",
+      "type": "String"
+    },
+    {
+      "name": "doctorName",
+      "title": "预约医生",
+      "type": "String"
+    },
+    {
+      "name": "serviceName",
+      "title": "预约项目",
+      "type": "String"
+    },
+    {
+      "name": "department",
+      "title": "预约科室",
+      "type": "String"
+    },
+    {
+      "name": "appointmentDate",
+      "title": "预约日期",
+      "type": "Date",
+      "format": "date"
+    },
+    {
+      "name": "timeSlot",
+      "title": "预约时间段",
+      "type": "String"
+    },
+    {
+      "name": "symptoms",
+      "title": "症状描述",
+      "type": "MultiLineString"
+    },
+    {
+      "name": "status",
+      "title": "预约状态",
+      "type": "String"
+    },
+    {
+      "name": "remark",
+      "title": "备注",
+      "type": "MultiLineString"
+    }
+  ]
+}

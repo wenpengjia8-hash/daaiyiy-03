@@ -1,0 +1,36 @@
+{
+  "name": "doctor",
+  "title": "医生",
+  "schemas": [
+    {
+      "name": "name",
+      "title": "医生姓名",
+      "type": "String"
+    },
+    {
+      "name": "title",
+      "title": "职称",
+      "type": "String"
+    },
+    {
+      "name": "avatar",
+      "title": "头像",
+      "type": "Image"
+    },
+    {
+      "name": "rating",
+      "title": "评分",
+      "type": "Number"
+    },
+    {
+      "name": "consultations",
+      "title": "咨询次数",
+      "type": "Number"
+    },
+    {
+      "name": "expertise",
+      "title": "擅长领域",
+      "type": "MultiLineString"
+    }
+  ]
+}
