@@ -2167,6 +2167,89 @@ export default function Admin(props) {
   const [departments, setDepartments] = useState(mockDepartments);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // 检查登录状态
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+  const checkAuthStatus = () => {
+    try {
+      const adminAuth = localStorage.getItem('adminAuth');
+      if (!adminAuth) {
+        // 未登录，跳转到登录页
+        toast({
+          title: '请先登录',
+          description: '正在跳转到登录页面...',
+          variant: 'destructive'
+        });
+        setTimeout(() => {
+          props.$w.utils.redirectTo({
+            pageId: 'adminLogin',
+            params: {}
+          });
+        }, 1000);
+        setCheckingAuth(false);
+        return;
+      }
+      const authData = JSON.parse(adminAuth);
+      // 检查是否过期
+      if (authData.expiry && new Date().getTime() > authData.expiry) {
+        localStorage.removeItem('adminAuth');
+        toast({
+          title: '登录已过期',
+          description: '请重新登录',
+          variant: 'destructive'
+        });
+        setTimeout(() => {
+          props.$w.utils.redirectTo({
+            pageId: 'adminLogin',
+            params: {}
+          });
+        }, 1000);
+        setCheckingAuth(false);
+        return;
+      }
+      setIsAuthenticated(true);
+      setCheckingAuth(false);
+    } catch (error) {
+      console.error('检查登录状态失败:', error);
+      localStorage.removeItem('adminAuth');
+      setTimeout(() => {
+        props.$w.utils.redirectTo({
+          pageId: 'adminLogin',
+          params: {}
+        });
+      }, 1000);
+      setCheckingAuth(false);
+    }
+  };
+
+  // 退出登录
+  const handleLogout = async () => {
+    try {
+      // 清除本地存储的登录状态
+      localStorage.removeItem('adminAuth');
+      toast({
+        title: '已退出登录',
+        description: '正在跳转...'
+      });
+      setTimeout(() => {
+        props.$w.utils.redirectTo({
+          pageId: 'home',
+          params: {}
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('退出登录失败:', error);
+      toast({
+        title: '退出失败',
+        description: error.message || '请重试',
+        variant: 'destructive'
+      });
+    }
+  };
 
   // 加载医生列表
   const loadDoctors = async () => {
@@ -2283,6 +2366,25 @@ export default function Admin(props) {
         return <DashboardContent stats={mockStats} appointments={appointments} doctors={doctors} />;
     }
   };
+  // 如果正在检查登录状态，显示加载状态
+  if (checkingAuth) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-500">正在检查登录状态...</p>
+        </div>
+      </div>;
+  }
+
+  // 如果未登录，不渲染内容
+  if (!isAuthenticated) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">请先登录</p>
+          <p className="text-sm text-gray-400">正在跳转到登录页面...</p>
+        </div>
+      </div>;
+  }
   return <div className="flex h-screen bg-gray-50">
       {/* 侧边栏 */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-slate-800 to-slate-900 text-white transition-all duration-300 flex flex-col`}>
@@ -2312,16 +2414,7 @@ export default function Admin(props) {
 
         {/* 退出按钮 */}
         <div className="p-4 border-t border-slate-700">
-          <button onClick={() => {
-          toast({
-            title: '已退出登录',
-            description: '正在跳转...'
-          });
-          props.$w.utils.redirectTo?.({
-            pageId: 'home',
-            params: {}
-          });
-        }} className="w-full flex items-center gap-3 px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition-colors">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition-colors">
             <LogOut size={20} />
             {sidebarOpen && <span>退出登录</span>}
           </button>
