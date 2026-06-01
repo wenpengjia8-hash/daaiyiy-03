@@ -1,5 +1,5 @@
 // @ts-ignore;
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 // @ts-ignore;
 import { useToast } from '@/components/ui';
 // @ts-ignore;
@@ -1665,7 +1665,7 @@ function StaffContent({
         </div>
       </div>
 
-      {activeTab === 'staff' ? <React.Fragment>
+      {activeTab === 'staff' ? <Fragment>
           {/* 操作栏 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -1835,7 +1835,7 @@ function StaffContent({
                 </div>
               </div>
             </div>}
-        </React.Fragment> : <React.Fragment>
+        </Fragment> : <Fragment>
           {/* 管理员操作栏 */}
           <div className="flex items-center justify-between">
             <div className="text-gray-600">共 {admins.length} 个管理员账号</div>
@@ -1953,7 +1953,7 @@ function StaffContent({
                 </div>
               </div>
             </div>}
-        </React.Fragment>}
+        </Fragment>}
     </div>;
 }
 
