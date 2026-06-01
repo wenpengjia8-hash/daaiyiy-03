@@ -1665,7 +1665,7 @@ function StaffContent({
         </div>
       </div>
 
-      {activeTab === 'staff' ? <>
+      {activeTab === 'staff' ? <React.Fragment>
           {/* 操作栏 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -1835,7 +1835,7 @@ function StaffContent({
                 </div>
               </div>
             </div>}
-        </> : <>
+        </React.Fragment> : <React.Fragment>
           {/* 管理员操作栏 */}
           <div className="flex items-center justify-between">
             <div className="text-gray-600">共 {admins.length} 个管理员账号</div>
@@ -1953,7 +1953,7 @@ function StaffContent({
                 </div>
               </div>
             </div>}
-        </>}
+        </React.Fragment>}
     </div>;
 }
 
